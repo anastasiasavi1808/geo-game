@@ -394,7 +394,34 @@ function getCountriesForGame(key, diff){
   return getCountriesByContinent(key).filter(c=>c.difficulty<=dn);
 }
 
-// ── Mercator projection (Globally stable and preserves // Helper to get reference longitude of a geometry to handle antimeridian crossing contiguously
+// ── Mercator projection (Globally stable and preserves local shapes perfectly) ──
+function createProjection(continentKey){
+  const {minLon,maxLon,minLat,maxLat} = CONTINENTS['world'].bounds;
+  const gW = maxLon - minLon;
+  
+  function project(lon, lat) {
+    const x = ((lon - minLon) / gW) * (SVG_W - 2 * SVG_PAD) + SVG_PAD;
+    const clampedLat = Math.max(-85, Math.min(85, lat));
+    const latRad = (clampedLat * Math.PI) / 180;
+    const yVal = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+    return [x, yVal];
+  }
+  
+  const [, yMin] = project(0, maxLat);
+  const [, yMax] = project(0, minLat);
+  const ySpan = yMin - yMax;
+  
+  return ([lon, lat]) => {
+    const [x, yVal] = project(lon, lat);
+    const y = SVG_PAD + ((yMin - yVal) / ySpan) * (SVG_H - 2 * SVG_PAD);
+    return [
+      Math.round(x * 100) / 100,
+      Math.round(y * 100) / 100
+    ];
+  };
+}
+
+// Helper to get reference longitude of a geometry (mainland body) to handle antimeridian crossing contiguously
 function getRefLon(geometry) {
   if (!geometry || !geometry.coordinates) return 0;
   try {
@@ -405,6 +432,18 @@ function getRefLon(geometry) {
       return geometry.coordinates[0][0][0];
     }
     if (geometry.type === 'MultiPolygon') {
+      // Find the polygon with the most coordinates in its outer ring (the mainland body)
+      let bestRing = null;
+      let maxLen = 0;
+      geometry.coordinates.forEach(poly => {
+        if (poly && poly[0] && poly[0].length > maxLen) {
+          maxLen = poly[0].length;
+          bestRing = poly[0];
+        }
+      });
+      if (bestRing && bestRing[0]) {
+        return bestRing[0][0]; // Longitude of the first point of the largest polygon
+      }
       return geometry.coordinates[0][0][0][0];
     }
   } catch (e) {
