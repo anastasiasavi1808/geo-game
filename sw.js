@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geoquiz-cache-v1';
+const CACHE_NAME = 'geoquiz-cache-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,7 +8,7 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon.svg',
   'https://cdn.jsdelivr.net/npm/topojson-client@3',
-  'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json',
+  'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'
 ];
 

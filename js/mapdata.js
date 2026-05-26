@@ -5,9 +5,9 @@
    query helpers and microstate center points.
    ═══════════════════════════════════════════════════════ */
 
-// ── Data source (Natural Earth 10m via world‑atlas CDN for maximum accuracy) ──
+// ── Data source (Natural Earth 50m via world‑atlas CDN for high accuracy and instant load) ──
 const WORLD_ATLAS_URL =
-  'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json';
+  'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
 
 // ── SVG canvas defaults ──
 const SVG_W = 1000;
@@ -394,57 +394,48 @@ function getCountriesForGame(key, diff){
   return getCountriesByContinent(key).filter(c=>c.difficulty<=dn);
 }
 
-// ── Mercator projection (Globally stable and preserves local shapes perfectly) ──
-function createProjection(continentKey){
-  const {minLon,maxLon,minLat,maxLat} = CONTINENTS['world'].bounds;
-  const gW = maxLon - minLon;
-  
-  function project(lon, lat) {
-    const x = ((lon - minLon) / gW) * (SVG_W - 2 * SVG_PAD) + SVG_PAD;
-    const clampedLat = Math.max(-85, Math.min(85, lat));
-    const latRad = (clampedLat * Math.PI) / 180;
-    const yVal = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-    return [x, yVal];
+// ── Mercator projection (Globally stable and preserves // Helper to get reference longitude of a geometry to handle antimeridian crossing contiguously
+function getRefLon(geometry) {
+  if (!geometry || !geometry.coordinates) return 0;
+  try {
+    if (geometry.type === 'Point') {
+      return geometry.coordinates[0];
+    }
+    if (geometry.type === 'Polygon') {
+      return geometry.coordinates[0][0][0];
+    }
+    if (geometry.type === 'MultiPolygon') {
+      return geometry.coordinates[0][0][0][0];
+    }
+  } catch (e) {
+    return 0;
   }
-  
-  const [, yMin] = project(0, maxLat);
-  const [, yMax] = project(0, minLat);
-  const ySpan = yMin - yMax;
-  
-  return ([lon, lat]) => {
-    const [x, yVal] = project(lon, lat);
-    const y = SVG_PAD + ((yMin - yVal) / ySpan) * (SVG_H - 2 * SVG_PAD);
-    return [
-      Math.round(x * 100) / 100,
-      Math.round(y * 100) / 100
-    ];
-  };
+  return 0;
+}
+
+// Helper to wrap longitude contiguous to reference longitude
+function wrapLon(lon, refLon) {
+  let diff = lon - refLon;
+  if (diff > 180) {
+    lon -= 360;
+  } else if (diff < -180) {
+    lon += 360;
+  }
+  return lon;
 }
 
 // ── GeoJSON geometry → SVG <path> d‑attribute ───────────
 function geometryToPath(geometry, proj){
   if(!geometry||!geometry.coordinates) return '';
-  if(geometry.type === 'Point') return ''; // points are drawn as circles separately
+  if(geometry.type === 'Point') return '';
+  
+  const refLon = getRefLon(geometry);
   
   function ring(r){
     let d='';
-    let lastLon = null;
-    let lonOffset = 0;
-    
     for(let i=0;i<r.length;i++){
       const [lon, lat] = r[i];
-      let adjustedLon = lon;
-      if (lastLon !== null) {
-        const diff = lon - lastLon;
-        if (diff > 180) {
-          lonOffset -= 360;
-        } else if (diff < -180) {
-          lonOffset += 360;
-        }
-      }
-      adjustedLon = lon + lonOffset;
-      lastLon = lon;
-      
+      const adjustedLon = wrapLon(lon, refLon);
       const [x,y]=proj([adjustedLon, lat]);
       d+=(i?'L':'M')+x+','+y;
     }
@@ -470,31 +461,23 @@ function geometryCentroid(geometry, proj){
   } else if(geometry.type==='MultiPolygon'){
     let best=null, bestLen=0;
     geometry.coordinates.forEach(p=>{
-      if(p[0].length>bestLen){ bestLen=p[0].length; best=p[0]; }
+      if(p && p[0] && p[0].length>bestLen){ bestLen=p[0].length; best=p[0]; }
     });
     coords=best||[];
   } else return [0,0];
   
+  const refLon = getRefLon(geometry);
   let tx=0, ty=0;
-  let lastLon = null;
-  let lonOffset = 0;
   
   coords.forEach(pt => {
     const [lon, lat] = pt;
-    if (lastLon !== null) {
-      const diff = lon - lastLon;
-      if (diff > 180) lonOffset -= 360;
-      else if (diff < -180) lonOffset += 360;
-    }
-    const adjustedLon = lon + lonOffset;
-    lastLon = lon;
-    
+    const adjustedLon = wrapLon(lon, refLon);
     const [x, y] = proj([adjustedLon, lat]);
     tx += x;
     ty += y;
   });
   
-  return [tx/coords.length, ty/coords.length];
+  return coords.length ? [tx/coords.length, ty/coords.length] : [0,0];
 }
 
 // ── Bounding Box of the geometry in SVG canvas space ──
@@ -507,20 +490,12 @@ function getGeometryBBox(geometry, proj){
   
   let minX = Infinity, minY = Infinity;
   let maxX = -Infinity, maxY = -Infinity;
+  const refLon = getRefLon(geometry);
 
   function updateWithRing(r) {
-    let lastLon = null;
-    let lonOffset = 0;
     r.forEach(pt => {
       const [lon, lat] = pt;
-      if (lastLon !== null) {
-        const diff = lon - lastLon;
-        if (diff > 180) lonOffset -= 360;
-        else if (diff < -180) lonOffset += 360;
-      }
-      const adjustedLon = lon + lonOffset;
-      lastLon = lon;
-      
+      const adjustedLon = wrapLon(lon, refLon);
       const [x, y] = proj([adjustedLon, lat]);
       if (x < minX) minX = x;
       if (y < minY) minY = y;
@@ -532,7 +507,11 @@ function getGeometryBBox(geometry, proj){
   if (geometry.type === 'Polygon') {
     geometry.coordinates.forEach(updateWithRing);
   } else if (geometry.type === 'MultiPolygon') {
-    geometry.coordinates.forEach(poly => poly.forEach(updateWithRing));
+    geometry.coordinates.forEach(poly => {
+      if (poly && poly.length > 0) {
+        poly.forEach(updateWithRing);
+      }
+    });
   }
 
   if (minX === Infinity) return null;
