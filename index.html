@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoQuiz — Gioco Geografico Interattivo Globale</title>
+  <meta name="description" content="Metti alla prova le tue conoscenze geografiche! Individua i paesi sulla mappa del mondo in questo splendido gioco interattivo.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🌍</text></svg>">
+</head>
+<body>
+
+  <!-- Particle background canvas -->
+  <canvas id="particles-canvas"></canvas>
+
+  <!-- ═══════════ LOADING OVERLAY ═══════════ -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Caricamento Mappa del Mondo HD…</p>
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 1 — WELCOME ═══════════ -->
+  <section id="screen-welcome" class="screen">
+    <div class="welcome-container">
+      <div class="logo-wrapper">
+        <svg class="globe-svg" viewBox="0 0 120 120" width="140" height="140">
+          <defs>
+            <linearGradient id="globe-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00d4aa"/>
+              <stop offset="100%" stop-color="#00b4d8"/>
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="54" fill="none" stroke="url(#globe-grad)" stroke-width="3" opacity=".3"/>
+          <circle cx="60" cy="60" r="54" fill="none" stroke="url(#globe-grad)" stroke-width="3" stroke-dasharray="12 8" class="globe-ring"/>
+          <ellipse cx="60" cy="60" rx="25" ry="54" fill="none" stroke="url(#globe-grad)" stroke-width="2" class="globe-meridian"/>
+          <ellipse cx="60" cy="60" rx="54" ry="25" fill="none" stroke="url(#globe-grad)" stroke-width="2" transform="rotate(-25 60 60)" class="globe-equator"/>
+          <line x1="6" y1="60" x2="114" y2="60" stroke="url(#globe-grad)" stroke-width="1.5" opacity=".4"/>
+          <circle cx="60" cy="60" r="4" fill="url(#globe-grad)" class="globe-dot"/>
+        </svg>
+      </div>
+
+      <h1 class="title" id="main-title">
+        <span class="title-geo">Geo</span><span class="title-quiz">Quiz</span>
+      </h1>
+      <p class="subtitle">Individua gli Stati sulla Mappa Interattiva del Mondo!</p>
+
+      <div class="nickname-form">
+        <div class="input-group">
+          <svg class="input-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <input type="text" id="nickname-input" placeholder="Inserisci il tuo nickname…" maxlength="20" autocomplete="off">
+        </div>
+        <button id="btn-start" class="btn btn-primary" disabled>
+          <span>Inizia</span>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <button id="btn-leaderboard-home" class="btn btn-secondary">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/>
+        </svg>
+        <span>Classifica Record</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN 2 — CONTINENT ═══════════ -->
+  <section id="screen-continent" class="screen">
+    <div class="screen-content">
+      <button class="btn-back" id="btn-back-continent" aria-label="Torna indietro">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="screen-title">Scegli l'Area di Gioco</h2>
+      <p class="screen-subtitle">In quale parte del pianeta vuoi metterti alla prova?</p>
+      <div class="continent-grid" id="continent-grid"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN 3 — DIFFICULTY ═══════════ -->
+  <section id="screen-difficulty" class="screen">
+    <div class="screen-content">
+      <button class="btn-back" id="btn-back-difficulty" aria-label="Torna indietro">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="screen-title">Scegli la Difficoltà</h2>
+      <p class="screen-subtitle" id="difficulty-subtitle"></p>
+      <div class="difficulty-grid">
+        <button class="difficulty-card" data-level="easy" id="diff-easy">
+          <div class="difficulty-icon">🌱</div>
+          <h3>Facile</h3>
+          <p>Solo le nazioni principali e più estese</p>
+          <span class="country-count" id="count-easy">0 paesi</span>
+        </button>
+        <button class="difficulty-card" data-level="medium" id="diff-medium">
+          <div class="difficulty-icon">⚡</div>
+          <h3>Medio</h3>
+          <p>Aggiunge nazioni di medie dimensioni</p>
+          <span class="country-count" id="count-medium">0 paesi</span>
+        </button>
+        <button class="difficulty-card" data-level="hard" id="diff-hard">
+          <div class="difficulty-icon">🔥</div>
+          <h3>Difficile</h3>
+          <p>Mappa completa, inclusi tutti i micro-stati</p>
+          <span class="country-count" id="count-hard">0 paesi</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN 4 — GAME ═══════════ -->
+  <section id="screen-game" class="screen">
+    <div class="game-container">
+      <!-- Top stats bar -->
+      <div class="game-topbar">
+        <button class="btn-back btn-back-sm" id="btn-back-game" aria-label="Esci dal gioco">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="game-stats">
+          <div class="stat-item" title="Tempo">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="game-timer">00:00</span>
+          </div>
+          <div class="stat-item" title="Precisione">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span id="game-accuracy">100%</span>
+          </div>
+          <div class="stat-item" title="Progresso">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            <span id="game-progress">0/0</span>
+          </div>
+        </div>
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="btn-zoom-in"    title="Zoom in"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+          <button class="zoom-btn" id="btn-zoom-out"   title="Zoom out"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+          <button class="zoom-btn" id="btn-zoom-reset" title="Ripristina Visuale"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Country query prompt -->
+      <div class="country-prompt">
+        <span class="prompt-label">Trova sulla mappa del mondo:</span>
+        <span class="prompt-country" id="game-country-name">---</span>
+      </div>
+
+      <!-- Round Progress bar -->
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="game-progress-bar"></div>
+      </div>
+
+      <!-- Split Layout: Global SVG Map + Correct answers sidebar -->
+      <div class="game-body">
+        <div class="game-map-area">
+          <div class="map-container" id="map-container">
+            <svg id="game-map" xmlns="http://www.w3.org/2000/svg"></svg>
+            
+            <!-- Map floating overlay controls -->
+            <div class="map-overlay-controls">
+              <button class="map-overlay-btn" id="btn-map-zoom-in" title="Aumenta Zoom">+</button>
+              <button class="map-overlay-btn" id="btn-map-zoom-out" title="Diminuisci Zoom">−</button>
+              <button class="map-overlay-btn" id="btn-map-zoom-reset" title="Ripristina Visuale">⟲</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar panel listing correct items -->
+        <div class="found-panel" id="found-panel">
+          <div class="found-header">
+            <span>✅ Risposte Corrette</span>
+            <span class="found-badge" id="found-count">0</span>
+          </div>
+          <div class="found-list" id="found-list">
+            <!-- Dynamic elements prepended by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Glowing feedback toast -->
+      <div class="feedback-toast" id="feedback-toast">
+        <!-- Interactive content injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN 5 — RESULTS ═══════════ -->
+  <section id="screen-results" class="screen">
+    <div class="screen-content results-content">
+      <div class="results-icon" id="results-icon">🏆</div>
+      <h2 class="screen-title" id="results-title">Ottimo lavoro!</h2>
+      <p class="screen-subtitle" id="results-subtitle"></p>
+
+      <div class="results-grid">
+        <div class="result-card"><div class="result-icon">🌍</div><div class="result-label">Zona Mappa</div><div class="result-value" id="result-continent">-</div></div>
+        <div class="result-card"><div class="result-icon">📊</div><div class="result-label">Difficoltà</div><div class="result-value" id="result-level">-</div></div>
+        <div class="result-card"><div class="result-icon">⏱️</div><div class="result-label">Tempo impiegato</div><div class="result-value" id="result-time">-</div></div>
+        <div class="result-card accent"><div class="result-icon">🎯</div><div class="result-label">Precisione</div><div class="result-value" id="result-accuracy">-</div></div>
+        <div class="result-card"><div class="result-icon">✅</div><div class="result-label">Stati trovati</div><div class="result-value" id="result-found">-</div></div>
+        <div class="result-card"><div class="result-icon">❌</div><div class="result-label">Errori commessi</div><div class="result-value" id="result-errors">-</div></div>
+      </div>
+
+      <div class="results-actions">
+        <button id="btn-play-again" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span>Gioca ancora</span>
+        </button>
+        <button id="btn-results-leaderboard" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/></svg>
+          <span>Classifica</span>
+        </button>
+        <button id="btn-results-home" class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Torna alla Home</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCREEN 6 — LEADERBOARD ═══════════ -->
+  <section id="screen-leaderboard" class="screen">
+    <div class="screen-content">
+      <button class="btn-back" id="btn-back-leaderboard" aria-label="Torna indietro">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="screen-title">🏆 Classifica dei Migliori</h2>
+      <div class="leaderboard-filters">
+        <select id="filter-continent" class="filter-select">
+          <option value="all">Tutte le zone</option>
+          <option value="europe">Europa</option>
+          <option value="asia">Asia</option>
+          <option value="africa">Africa</option>
+          <option value="north-america">Nord America</option>
+          <option value="south-america">Sud America</option>
+          <option value="oceania">Oceania</option>
+          <option value="world">Mondo intero</option>
+        </select>
+        <select id="filter-level" class="filter-select">
+          <option value="all">Tutte le difficoltà</option>
+          <option value="easy">Facile</option>
+          <option value="medium">Medio</option>
+          <option value="hard">Difficile</option>
+        </select>
+      </div>
+      <div class="leaderboard-table-container">
+        <table class="leaderboard-table" id="leaderboard-table">
+          <thead><tr><th>Rank</th><th>Giocatore</th><th>Area Mappa</th><th>Livello</th><th>Precisione</th><th>Tempo</th><th>Data</th></tr></thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+        <div class="leaderboard-empty" id="leaderboard-empty">
+          <div class="empty-icon">📊</div>
+          <p>Nessun record salvato per questi filtri.<br>Inizia a giocare per scalare la classifica!</p>
+        </div>
+      </div>
+      <button id="btn-clear-leaderboard" class="btn btn-ghost btn-small">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Azzera Classifica</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══════════ SCRIPTS ═══════════ -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <script src="js/mapdata.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
