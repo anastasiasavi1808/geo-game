@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geoquiz-cache-v2';
+const CACHE_NAME = 'geoquiz-cache-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -21,7 +21,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate: Clean up old caches
+// Activate: Clean up old caches immediately
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -36,14 +36,17 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: Cache-first with dynamic caching for flags and external fonts
+// Fetch listener with selective strategy:
+// 1. Local App Assets (HTML, CSS, JS) -> Network-First (always serve latest, fall back to offline cache)
+// 2. External CDNs (libs, fonts, flags) -> Cache-First (instant loading, save bandwidth)
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  const isExternal = url.hostname !== self.location.hostname;
 
-  // Dynamic caching for FlagCDN flags and Google Fonts files
-  if (url.hostname === 'flagcdn.com' || url.hostname === 'fonts.gstatic.com') {
+  // Strategy A: External Assets (Cache-First with dynamic caching for flags/fonts)
+  if (isExternal) {
     event.respondWith(
       caches.open(CACHE_NAME).then(cache => {
         return cache.match(event.request).then(cachedResponse => {
@@ -63,24 +66,26 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Standard cache-first strategy for app shell assets
+  // Strategy B: Local App Assets (Network-First with offline cache fallback)
+  // This guarantees updates are reflected immediately, avoiding PWA version freeze!
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200 && url.origin === self.location.origin) {
+    fetch(event.request)
+      .then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseClone);
           });
         }
         return networkResponse;
-      }).catch(() => {
-        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(event.request).then(cachedResponse => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
+            return caches.match('./index.html');
+          }
+        });
+      })
   );
 });
