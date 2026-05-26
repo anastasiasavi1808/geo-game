@@ -1386,3 +1386,167 @@ body {
 .microstate-marker.blink-reveal {
   animation: countryBlink 1.5s ease both;
 }
+
+/* ── Light Theme Variables ──────────────────────────────── */
+.light-theme {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #e2e8f0;
+  --bg-card: rgba(0, 0, 0, 0.03);
+  --bg-card-hover: rgba(0, 0, 0, 0.06);
+  --bg-card-active: rgba(0, 0, 0, 0.1);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  /* Map Day Mode Palette (Soft light theme colors, highly legible) */
+  --map-ocean: #dbeafe;            /* Beautiful soft pastel sky blue ocean */
+  --map-land-default: #cbd5e1;     /* Soft slate gray for background land */
+  --map-land-playable: #93c5fd;    /* Soft vibrant sky blue for playable countries */
+  --map-border-default: #94a3b8;   /* Legible borders for background land */
+  --map-border-playable: #3b82f6;  /* Royal blue for playable country borders */
+
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 64px rgba(15, 23, 42, 0.12);
+}
+
+/* ── Theme Toggle Button ───────────────────────────────── */
+.theme-toggle-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.4);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Icons state management */
+.theme-toggle-btn .sun-icon {
+  display: none;
+}
+.theme-toggle-btn .moon-icon {
+  display: block;
+}
+
+.light-theme .theme-toggle-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.light-theme .theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 20px rgba(0, 180, 216, 0.3);
+}
+
+.light-theme .theme-toggle-btn .sun-icon {
+  display: block;
+  color: #f59e0b; /* Golden sun color */
+}
+.light-theme .theme-toggle-btn .moon-icon {
+  display: none;
+}
+
+/* ── Mobile Responsive Overrides ───────────────────────── */
+@media (max-width: 768px) {
+  .theme-toggle-btn {
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .game-container {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 2.2rem;
+  }
+  
+  .subtitle {
+    font-size: 0.9rem;
+    padding: 0 16px;
+  }
+
+  .screen-title {
+    font-size: 1.3rem;
+  }
+
+  .screen-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+  
+  .stat-item {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    gap: 4px;
+  }
+  
+  .prompt-country {
+    font-size: 1.3rem;
+  }
+  
+  .map-overlay-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.2rem;
+  }
+  
+  .leaderboard-filters {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+
+  .dialog-box {
+    padding: 20px;
+  }
+}
+
+/* ── Large Screen Optimization ─────────────────────────── */
+@media (min-width: 1440px) {
+  .welcome-container,
+  .screen-content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .continent-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .difficulty-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

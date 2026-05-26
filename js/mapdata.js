@@ -394,19 +394,31 @@ function getCountriesForGame(key, diff){
   return getCountriesByContinent(key).filter(c=>c.difficulty<=dn);
 }
 
-// ── Equirectangular projection (ALWAYS GLOBALLY STABLE USING WORLD BOUNDARIES) ──
+// ── Mercator projection (Globally stable and preserves local shapes perfectly) ──
 function createProjection(continentKey){
-  // We ALWAYS use the global 'world' boundaries for projection,
-  // ensuring the coordinates system is 100% stable and predictable!
   const {minLon,maxLon,minLat,maxLat} = CONTINENTS['world'].bounds;
-  const gW = maxLon-minLon, gH = maxLat-minLat;
-  const sX = (SVG_W-2*SVG_PAD)/gW, sY = (SVG_H-2*SVG_PAD)/gH;
-  const s  = Math.min(sX,sY);
-  const oX = (SVG_W - gW*s)/2, oY = (SVG_H - gH*s)/2;
-  return ([lon,lat])=>[
-    Math.round(((lon-minLon)*s + oX)*100)/100,
-    Math.round(((maxLat-lat)*s + oY)*100)/100
-  ];
+  const gW = maxLon - minLon;
+  
+  function project(lon, lat) {
+    const x = ((lon - minLon) / gW) * (SVG_W - 2 * SVG_PAD) + SVG_PAD;
+    const clampedLat = Math.max(-85, Math.min(85, lat));
+    const latRad = (clampedLat * Math.PI) / 180;
+    const yVal = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+    return [x, yVal];
+  }
+  
+  const [, yMin] = project(0, maxLat);
+  const [, yMax] = project(0, minLat);
+  const ySpan = yMin - yMax;
+  
+  return ([lon, lat]) => {
+    const [x, yVal] = project(lon, lat);
+    const y = SVG_PAD + ((yMin - yVal) / ySpan) * (SVG_H - 2 * SVG_PAD);
+    return [
+      Math.round(x * 100) / 100,
+      Math.round(y * 100) / 100
+    ];
+  };
 }
 
 // ── GeoJSON geometry → SVG <path> d‑attribute ───────────
@@ -416,8 +428,24 @@ function geometryToPath(geometry, proj){
   
   function ring(r){
     let d='';
+    let lastLon = null;
+    let lonOffset = 0;
+    
     for(let i=0;i<r.length;i++){
-      const [x,y]=proj(r[i]);
+      const [lon, lat] = r[i];
+      let adjustedLon = lon;
+      if (lastLon !== null) {
+        const diff = lon - lastLon;
+        if (diff > 180) {
+          lonOffset -= 360;
+        } else if (diff < -180) {
+          lonOffset += 360;
+        }
+      }
+      adjustedLon = lon + lonOffset;
+      lastLon = lon;
+      
+      const [x,y]=proj([adjustedLon, lat]);
       d+=(i?'L':'M')+x+','+y;
     }
     return d+'Z';
@@ -446,8 +474,26 @@ function geometryCentroid(geometry, proj){
     });
     coords=best||[];
   } else return [0,0];
-  let tx=0,ty=0;
-  coords.forEach(c=>{ const [x,y]=proj(c); tx+=x; ty+=y; });
+  
+  let tx=0, ty=0;
+  let lastLon = null;
+  let lonOffset = 0;
+  
+  coords.forEach(pt => {
+    const [lon, lat] = pt;
+    if (lastLon !== null) {
+      const diff = lon - lastLon;
+      if (diff > 180) lonOffset -= 360;
+      else if (diff < -180) lonOffset += 360;
+    }
+    const adjustedLon = lon + lonOffset;
+    lastLon = lon;
+    
+    const [x, y] = proj([adjustedLon, lat]);
+    tx += x;
+    ty += y;
+  });
+  
   return [tx/coords.length, ty/coords.length];
 }
 
@@ -462,18 +508,31 @@ function getGeometryBBox(geometry, proj){
   let minX = Infinity, minY = Infinity;
   let maxX = -Infinity, maxY = -Infinity;
 
-  function update(pt) {
-    const [x, y] = proj(pt);
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x > maxX) maxX = x;
-    if (y > maxY) maxY = y;
+  function updateWithRing(r) {
+    let lastLon = null;
+    let lonOffset = 0;
+    r.forEach(pt => {
+      const [lon, lat] = pt;
+      if (lastLon !== null) {
+        const diff = lon - lastLon;
+        if (diff > 180) lonOffset -= 360;
+        else if (diff < -180) lonOffset += 360;
+      }
+      const adjustedLon = lon + lonOffset;
+      lastLon = lon;
+      
+      const [x, y] = proj([adjustedLon, lat]);
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    });
   }
 
   if (geometry.type === 'Polygon') {
-    geometry.coordinates.forEach(ring => ring.forEach(update));
+    geometry.coordinates.forEach(updateWithRing);
   } else if (geometry.type === 'MultiPolygon') {
-    geometry.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(update)));
+    geometry.coordinates.forEach(poly => poly.forEach(updateWithRing));
   }
 
   if (minX === Infinity) return null;

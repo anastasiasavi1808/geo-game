@@ -36,6 +36,7 @@ const state = {
 // ║               INITIALIZATION                        ║
 // ╚══════════════════════════════════════════════════════╝
 document.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
   initParticles();
   initNavigation();
   initGameControls();
@@ -55,6 +56,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (loadingText) loadingText.textContent = 'Errore nel caricamento delle mappe.';
   }
 });
+
+// ╔══════════════════════════════════════════════════════╗
+// ║               THEME MANAGEMENT                       ║
+// ╚══════════════════════════════════════════════════════╝
+function initTheme() {
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (!toggleBtn) return;
+
+  // Load saved theme
+  const savedTheme = localStorage.getItem('geoquiz_theme') || 'dark';
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    localStorage.setItem('geoquiz_theme', isLight ? 'light' : 'dark');
+  });
+}
 
 // ╔══════════════════════════════════════════════════════╗
 // ║            PARTICLE BACKGROUND                      ║
@@ -92,7 +113,8 @@ function initParticles() {
     draw() {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 212, 170, ${this.alpha})`;
+      const isLight = document.body.classList.contains('light-theme');
+      ctx.fillStyle = isLight ? `rgba(0, 100, 150, ${this.alpha * 0.4})` : `rgba(0, 212, 170, ${this.alpha})`;
       ctx.fill();
     }
   }
@@ -111,7 +133,10 @@ function initParticles() {
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(0, 180, 216, ${0.06 * (1 - dist / 130)})`;
+          const isLight = document.body.classList.contains('light-theme');
+          ctx.strokeStyle = isLight 
+            ? `rgba(0, 100, 180, ${0.03 * (1 - dist / 130)})` 
+            : `rgba(0, 180, 216, ${0.06 * (1 - dist / 130)})`;
           ctx.lineWidth = 0.5;
           ctx.stroke();
         }
