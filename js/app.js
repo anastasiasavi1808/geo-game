@@ -340,7 +340,7 @@ function renderMap() {
 
   // 1. Generate dynamic SVG <pattern> tags for each country
   availableCountries.forEach(country => {
-    if (!country.iso2) return;
+    if (!country || !country.iso2 || !country.feature || !country.feature.geometry) return;
     const lowerIso = country.iso2.toLowerCase();
 
     // Standard path pattern (userSpaceOnUse, sized to full canvas to prevent repetition)
@@ -447,7 +447,7 @@ function renderMap() {
 
   // 3. Render Microstate Circle Marker Overlays (Clickable at any zoom)
   availableCountries.forEach(country => {
-    if (!MICROSTATE_IDS.includes(country.id)) return;
+    if (!country || !MICROSTATE_IDS.includes(country.id) || !country.feature || !country.feature.geometry) return;
 
     // Filter circle markers to only show active quiz continent
     if (state.continent !== 'world') {
@@ -907,8 +907,12 @@ function getContinentViewport(key) {
   let zoom = Math.min((SVG_W * 0.82) / cW, (SVG_H * 0.82) / cH);
   zoom = Math.round(Math.max(1.0, Math.min(8, zoom)) * 10) / 10;
   
-  const panX = Math.round(SVG_W / 2 - cX * zoom);
-  const panY = Math.round(SVG_H / 2 - cY * zoom);
+  let panX = Math.round(SVG_W / 2 - cX * zoom);
+  let panY = Math.round(SVG_H / 2 - cY * zoom);
+  
+  if (isNaN(zoom) || !isFinite(zoom)) zoom = 1;
+  if (isNaN(panX) || !isFinite(panX)) panX = 0;
+  if (isNaN(panY) || !isFinite(panY)) panY = 0;
   
   return { zoom, panX, panY };
 }
