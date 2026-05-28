@@ -331,6 +331,7 @@ function renderMap() {
   
   // Set internal canvas view bounds
   svg.setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
+  svg.style.touchAction = 'none';
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
   svg.appendChild(defs);
@@ -363,7 +364,7 @@ function renderMap() {
       img.setAttribute('y', bbox.y);
       img.setAttribute('width', w);
       img.setAttribute('height', h);
-      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('preserveAspectRatio', 'none');
 
       pattern.appendChild(img);
       defs.appendChild(pattern);
@@ -464,7 +465,7 @@ function renderMap() {
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', cx);
     circle.setAttribute('cy', cy);
-    circle.setAttribute('r', 5); // Base starting radius
+    circle.setAttribute('r', 6); // Base starting radius (larger for touch)
     circle.setAttribute('id', `micro-marker-${country.id}`);
     circle.setAttribute('data-id', country.id);
 
@@ -486,9 +487,78 @@ function renderMap() {
 
   applyTransform();
   svg.addEventListener('click', handleMapClick);
+  initHoverTooltip(svg, g);
 }
 
+function initHoverTooltip(svg, g) {
+  // Create a single reusable floating label
+  let hoverLabel = document.getElementById('hover-label');
+  if (!hoverLabel) {
+    hoverLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    hoverLabel.id = 'hover-label';
+    hoverLabel.setAttribute('class', 'country-label hover-tooltip');
+    hoverLabel.setAttribute('pointer-events', 'none');
+  }
+  g.appendChild(hoverLabel);
 
+  // Desktop: mouseover on found paths/markers
+  svg.addEventListener('mouseover', (e) => {
+    const target = e.target.closest('.country-path.found, .microstate-marker.found');
+    if (!target) return;
+    const name = target.getAttribute('data-name');
+    if (!name) return;
+    showHoverLabel(target, name, g);
+  });
+
+  svg.addEventListener('mouseout', (e) => {
+    const target = e.target.closest('.country-path.found, .microstate-marker.found');
+    if (target) hideHoverLabel();
+  });
+
+  // Mobile: touchstart on found elements shows label briefly
+  svg.addEventListener('touchstart', (e) => {
+    const target = e.target.closest('.country-path.found, .microstate-marker.found');
+    if (!target) return;
+    const name = target.getAttribute('data-name');
+    if (!name) return;
+    showHoverLabel(target, name, g);
+    setTimeout(hideHoverLabel, 1800);
+  }, { passive: true });
+}
+
+function showHoverLabel(target, name, g) {
+  const hoverLabel = document.getElementById('hover-label');
+  if (!hoverLabel) return;
+
+  const proj = createProjection('world');
+  let cx, cy;
+
+  if (target.tagName === 'circle') {
+    cx = parseFloat(target.getAttribute('cx'));
+    cy = parseFloat(target.getAttribute('cy')) - 6 / state.zoomFactor;
+  } else {
+    const id = Number(target.dataset.id);
+    const country = countryMap[id];
+    if (country && country.feature) {
+      [cx, cy] = geometryCentroid(country.feature.geometry, proj);
+      cy -= 4 / state.zoomFactor;
+    } else {
+      return;
+    }
+  }
+
+  hoverLabel.setAttribute('x', cx);
+  hoverLabel.setAttribute('y', cy);
+  hoverLabel.textContent = name;
+  hoverLabel.style.fontSize = `${Math.max(3, 7 / state.zoomFactor)}px`;
+  hoverLabel.classList.add('visible');
+  g.appendChild(hoverLabel); // ensure it's on top
+}
+
+function hideHoverLabel() {
+  const hoverLabel = document.getElementById('hover-label');
+  if (hoverLabel) hoverLabel.classList.remove('visible');
+}
 
 function handleMapClick(e) {
   if (!state.gameActive) return;
@@ -535,18 +605,9 @@ function handleCorrectAnswer(countryId, country) {
     marker.setAttribute('fill', `url(#flag-pattern-micro-${countryId})`);
   }
   
-  // Build and inject text label on map
-  const proj = createProjection('world');
-  const centroid = geometryCentroid(country.feature.geometry, proj);
-  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  label.setAttribute('x', centroid[0]);
-  label.setAttribute('y', centroid[1]);
-  label.setAttribute('class', 'country-label visible');
-  label.style.fontSize = `${Math.max(3.5, 8 / state.zoomFactor)}px`;
-  label.textContent = country.nameIt;
-  
-  const g = document.getElementById('map-view-group');
-  if (g) g.appendChild(label);
+  // Store country name as data attribute for hover tooltip
+  if (path) path.setAttribute('data-name', country.nameIt);
+  if (marker) marker.setAttribute('data-name', country.nameIt);
 
   // Add dynamically to found sidebar
   addToFoundPanel(country);
@@ -635,17 +696,9 @@ function revealCorrectCountry(country) {
       marker.setAttribute('fill', `url(#flag-pattern-micro-${countryId})`);
     }
 
-    // Add label on map
-    const proj = createProjection('world');
-    const centroid = geometryCentroid(country.feature.geometry, proj);
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', centroid[0]);
-    label.setAttribute('y', centroid[1]);
-    label.setAttribute('class', 'country-label visible');
-    label.style.fontSize = `${Math.max(3.5, 8 / state.zoomFactor)}px`;
-    label.textContent = country.nameIt;
-    const g = document.getElementById('map-view-group');
-    if (g) g.appendChild(label);
+    // Store country name as data attribute for hover tooltip
+    if (path) path.setAttribute('data-name', country.nameIt);
+    if (marker) marker.setAttribute('data-name', country.nameIt);
 
     // Move to next country
     state.currentIndex++;
@@ -788,7 +841,10 @@ function initGameControls() {
   if (container) {
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
-      zoomMap(e.deltaY > 0 ? 1.15 : 0.85);
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      zoomMapAt(e.deltaY > 0 ? 1.08 : 0.92, mx, my);
     }, { passive: false });
   }
 
@@ -857,7 +913,11 @@ function initGameControls() {
       e.preventDefault();
       const dist = getDist(e.touches);
       if (dist > 10) {
-        zoomMap(touchDist / dist);
+        const ctr = document.getElementById('map-container');
+        const rect = ctr ? ctr.getBoundingClientRect() : { left: 0, top: 0 };
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        zoomMapAt(touchDist / dist, mx, my);
         touchDist = dist;
       }
     }
@@ -874,14 +934,22 @@ function getDist(touches) {
 
 function zoomMap(factor) {
   const oldZoom = state.zoomFactor;
-  // Dynamic scaling bounds up to 20x for microstate selection ease!
-  state.zoomFactor = Math.max(0.6, Math.min(20, state.zoomFactor / factor));
+  state.zoomFactor = Math.max(0.5, Math.min(50, state.zoomFactor / factor));
   
   // Center Zoom Adjustments
   const ratio = state.zoomFactor / oldZoom;
   state.panX = SVG_W / 2 - (SVG_W / 2 - state.panX) * ratio;
   state.panY = SVG_H / 2 - (SVG_H / 2 - state.panY) * ratio;
 
+  applyTransform();
+}
+
+function zoomMapAt(factor, cx, cy) {
+  const oldZoom = state.zoomFactor;
+  state.zoomFactor = Math.max(0.5, Math.min(50, state.zoomFactor / factor));
+  const ratio = state.zoomFactor / oldZoom;
+  state.panX = cx - (cx - state.panX) * ratio;
+  state.panY = cy - (cy - state.panY) * ratio;
   applyTransform();
 }
 
@@ -941,18 +1009,18 @@ function applyTransform() {
   // Prevents markers from scaling up/down to keep them comfortably clickable!
   const markers = document.querySelectorAll('.microstate-marker');
   markers.forEach(m => {
-    const defaultRadius = 5;
-    const rScaled = Math.max(1.5, defaultRadius / state.zoomFactor);
+    const defaultRadius = 6;
+    const rScaled = Math.max(2.0, defaultRadius / state.zoomFactor);
     const strokeScaled = Math.max(0.3, 0.8 / state.zoomFactor);
     m.setAttribute('r', rScaled);
     m.style.strokeWidth = strokeScaled;
   });
 
-  const labels = document.querySelectorAll('.country-label');
-  labels.forEach(l => {
-    const fontScaled = Math.max(3.5, 8 / state.zoomFactor);
-    l.style.fontSize = `${fontScaled}px`;
-  });
+  // Scale hover tooltip if visible
+  const hoverLabel = document.getElementById('hover-label');
+  if (hoverLabel && hoverLabel.classList.contains('visible')) {
+    hoverLabel.style.fontSize = `${Math.max(3, 7 / state.zoomFactor)}px`;
+  }
 }
 
 // ╔══════════════════════════════════════════════════════╗
