@@ -567,11 +567,24 @@ function getGeometryBBox(geometry, proj){
   if (geometry.type === 'Polygon') {
     geometry.coordinates.forEach(updateWithRing);
   } else if (geometry.type === 'MultiPolygon') {
+    // Mainland-only optimization: find the polygon with the most coordinates in its outer ring (the mainland body)
+    let bestPoly = null;
+    let maxLen = 0;
     geometry.coordinates.forEach(poly => {
-      if (poly && poly.length > 0) {
-        poly.forEach(updateWithRing);
+      if (poly && poly[0] && poly[0].length > maxLen) {
+        maxLen = poly[0].length;
+        bestPoly = poly;
       }
     });
+    if (bestPoly) {
+      bestPoly.forEach(updateWithRing);
+    } else {
+      geometry.coordinates.forEach(poly => {
+        if (poly && poly.length > 0) {
+          poly.forEach(updateWithRing);
+        }
+      });
+    }
   }
 
   if (minX === Infinity) return null;
