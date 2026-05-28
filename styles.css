@@ -693,6 +693,10 @@ body {
   transition: fill 0.3s ease;
 }
 
+#map-view-group {
+  will-change: transform;
+}
+
 /* Regular Country paths */
 .country-path {
   stroke: rgba(255, 255, 255, 0.12);
@@ -700,6 +704,8 @@ body {
   stroke-linejoin: round;
   stroke-linecap: round;
   cursor: pointer;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
   transition: filter 0.35s ease, stroke 0.35s ease, stroke-width 0.25s ease;
 }
 
@@ -748,7 +754,9 @@ body {
   stroke: rgba(255, 255, 255, 0.3);
   stroke-width: 0.8;
   filter: drop-shadow(0 0 2px rgba(0,0,0,0.4));
-  transition: filter 0.3s ease, stroke 0.3s ease, r 0.25s ease, stroke-width 0.25s ease;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
+  transition: filter 0.35s ease, stroke 0.35s ease, r 0.25s ease, stroke-width 0.25s ease;
 }
 
 .microstate-marker:hover {
@@ -1160,6 +1168,13 @@ body {
 
 @media (max-width: 768px) {
   .screen { padding: 12px; }
+  
+  .btn-back {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin-bottom: 12px;
+  }
   
   .continent-grid {
     grid-template-columns: repeat(2, 1fr);
