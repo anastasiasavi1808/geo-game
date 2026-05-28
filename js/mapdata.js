@@ -291,8 +291,8 @@ const MICROSTATE_COORDS = {
   52:  [-59.5432, 13.1939],  // Barbados
   
   // Oceania Microstates
-  882: [-172.1046, -13.7590],  // Samoa
-  776: [-175.1982, -21.1789],  // Tonga
+  882: [187.8954, -13.7590],  // Samoa
+  776: [184.8018, -21.1789],  // Tonga
   583: [158.1560, 6.9180],     // Micronesia
   585: [134.5825, 7.5150],     // Palau
   296: [172.9717, 1.4518],     // Kiribati
@@ -301,9 +301,9 @@ const MICROSTATE_COORDS = {
   584: [171.1848, 7.1315],      // Isole Marshall
 
   // Oceania – extra islands
-  184: [-159.7777, -21.2367],    // Isole Cook
-  570: [-169.8672, -19.0544],    // Niue
-  772: [-171.8484, -9.2002],     // Tokelau
+  184: [200.2223, -21.2367],    // Isole Cook
+  570: [190.1328, -19.0544],    // Niue
+  772: [188.1516, -9.2002],     // Tokelau
 
   // Small countries (enhanced clickability)
   196: [33.4299, 35.1264],       // Cipro
@@ -352,6 +352,30 @@ let allFeatures      = [];   // raw GeoJSON features
 let countryMap       = {};   // featureId → { meta, feature }
 let availableCountries = []; // playable entries
 
+// Helper to shift Oceania geometry coordinates continuously to the right of Australia (positive longitudes)
+function shiftGeometryOceania(geom) {
+  if (!geom) return;
+  if (geom.type === 'Point') {
+    if (geom.coordinates[0] < 0) {
+      geom.coordinates[0] += 360;
+    }
+  } else if (geom.type === 'Polygon') {
+    geom.coordinates.forEach(ring => {
+      ring.forEach(pt => {
+        if (pt[0] < 0) pt[0] += 360;
+      });
+    });
+  } else if (geom.type === 'MultiPolygon') {
+    geom.coordinates.forEach(poly => {
+      poly.forEach(ring => {
+        ring.forEach(pt => {
+          if (pt[0] < 0) pt[0] += 360;
+        });
+      });
+    });
+  }
+}
+
 // ── Load world topology from CDN ────────────────────────
 async function loadWorldData(){
   const res = await fetch(WORLD_ATLAS_URL);
@@ -359,6 +383,14 @@ async function loadWorldData(){
   const topo = await res.json();
   const geo  = topojson.feature(topo, topo.objects.countries);
   allFeatures = geo.features;
+
+  // Shift negative coordinates for all Oceania features to be positive (compact layout)
+  allFeatures.forEach(f => {
+    const meta = getCountryMeta(f.id);
+    if (meta && meta.continent === 'oceania') {
+      shiftGeometryOceania(f.geometry);
+    }
+  });
 
   countryMap = {};
   availableCountries = [];
