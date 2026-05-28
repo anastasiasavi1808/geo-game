@@ -353,15 +353,15 @@ function renderMap() {
       const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
       pattern.setAttribute('id', `flag-pattern-${country.id}`);
       pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-      pattern.setAttribute('x', 0);
-      pattern.setAttribute('y', 0);
-      pattern.setAttribute('width', SVG_W);
-      pattern.setAttribute('height', SVG_H);
+      pattern.setAttribute('x', bbox.x);
+      pattern.setAttribute('y', bbox.y);
+      pattern.setAttribute('width', w);
+      pattern.setAttribute('height', h);
 
       const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
       img.setAttribute('href', `https://flagcdn.com/${lowerIso}.svg`);
-      img.setAttribute('x', bbox.x);
-      img.setAttribute('y', bbox.y);
+      img.setAttribute('x', 0);
+      img.setAttribute('y', 0);
       img.setAttribute('width', w);
       img.setAttribute('height', h);
       img.setAttribute('preserveAspectRatio', 'none');
@@ -485,9 +485,15 @@ function renderMap() {
     g.appendChild(circle);
   });
 
+  initHoverTooltip(svg, g);
+
+  // Cache DOM references for high-performance pan/zoom
+  state.cachedMapView = document.getElementById('map-view-group');
+  state.cachedMarkers = Array.from(document.querySelectorAll('.microstate-marker'));
+  state.cachedHoverLabel = document.getElementById('hover-label');
+
   applyTransform();
   svg.addEventListener('click', handleMapClick);
-  initHoverTooltip(svg, g);
 }
 
 function initHoverTooltip(svg, g) {
@@ -869,7 +875,7 @@ function initGameControls() {
       state.panX += dx;
       state.panY += dy;
       state.panStart = { x: e.clientX, y: e.clientY };
-      applyTransform();
+      requestTransformUpdate();
     }
   });
 
@@ -907,7 +913,7 @@ function initGameControls() {
         state.panX += dx;
         state.panY += dy;
         touchStartPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        applyTransform();
+        requestTransformUpdate();
       }
     } else if (e.touches.length === 2) {
       e.preventDefault();
@@ -941,7 +947,7 @@ function zoomMap(factor) {
   state.panX = SVG_W / 2 - (SVG_W / 2 - state.panX) * ratio;
   state.panY = SVG_H / 2 - (SVG_H / 2 - state.panY) * ratio;
 
-  applyTransform();
+  requestTransformUpdate();
 }
 
 function zoomMapAt(factor, cx, cy) {
@@ -950,7 +956,7 @@ function zoomMapAt(factor, cx, cy) {
   const ratio = state.zoomFactor / oldZoom;
   state.panX = cx - (cx - state.panX) * ratio;
   state.panY = cy - (cy - state.panY) * ratio;
-  applyTransform();
+  requestTransformUpdate();
 }
 
 function getContinentViewport(key) {
@@ -991,15 +997,25 @@ function resetMapTransform() {
   state.zoomFactor = view.zoom;
   state.panX = view.panX;
   state.panY = view.panY;
-  applyTransform();
+  requestTransformUpdate();
 }
 
 
 // ╔══════════════════════════════════════════════════════╗
 // ║      APPLY TRANSLATE & COMPENSATED SCALE             ║
 // ╚══════════════════════════════════════════════════════╝
+let rafPending = false;
+function requestTransformUpdate() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    applyTransform();
+    rafPending = false;
+  });
+}
+
 function applyTransform() {
-  const g = document.getElementById('map-view-group');
+  const g = state.cachedMapView || document.getElementById('map-view-group');
   if (!g) return;
 
   // Apply SVG transformations
@@ -1007,17 +1023,20 @@ function applyTransform() {
 
   // DYNAMICALLY adjust microstate circle overlay sizes & label fonts
   // Prevents markers from scaling up/down to keep them comfortably clickable!
-  const markers = document.querySelectorAll('.microstate-marker');
+  const markers = state.cachedMarkers || Array.from(document.querySelectorAll('.microstate-marker'));
+  const isMobile = window.innerWidth <= 768;
+  const defaultRadius = 6;
+  const minR = isMobile ? 8.0 : 4.0;
+  const rScaled = Math.max(minR, defaultRadius / state.zoomFactor);
+  const strokeScaled = Math.max(0.3, 0.8 / state.zoomFactor);
+
   markers.forEach(m => {
-    const defaultRadius = 6;
-    const rScaled = Math.max(2.0, defaultRadius / state.zoomFactor);
-    const strokeScaled = Math.max(0.3, 0.8 / state.zoomFactor);
     m.setAttribute('r', rScaled);
     m.style.strokeWidth = strokeScaled;
   });
 
   // Scale hover tooltip if visible
-  const hoverLabel = document.getElementById('hover-label');
+  const hoverLabel = state.cachedHoverLabel || document.getElementById('hover-label');
   if (hoverLabel && hoverLabel.classList.contains('visible')) {
     hoverLabel.style.fontSize = `${Math.max(3, 7 / state.zoomFactor)}px`;
   }
