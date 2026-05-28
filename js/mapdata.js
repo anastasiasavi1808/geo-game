@@ -32,8 +32,8 @@ const CONTINENTS = {
                      bounds:{minLon:-82,maxLon:-34,minLat:-56,maxLat:13},
                      zoom: 1.8, panX: -260, panY: -580 },
   oceania:         { name:'Oceania',      emoji:'🌏', color:'#06b6d4',
-                     bounds:{minLon:110,maxLon:180,minLat:-48,maxLat:1},
-                     zoom: 1.8, panX: -1280, panY: -580 },
+                     bounds:{minLon:100,maxLon:200,minLat:-50,maxLat:10},
+                     zoom: 1.6, panX: -1200, panY: -500 },
   world:           { name:'Mondo',        emoji:'🌐', color:'#ec4899',
                      bounds:{minLon:-180,maxLon:180,minLat:-58,maxLat:84},
                      zoom: 1.0, panX: 0, panY: 0 }
@@ -251,6 +251,9 @@ const COUNTRY_META = {
   798:['Tuvalu','TV','oceania',3],
   520:['Nauru','NR','oceania',3],
   584:['Isole Marshall','MH','oceania',3],
+  184:['Isole Cook','CK','oceania',3],
+  570:['Niue','NU','oceania',3],
+  772:['Tokelau','TK','oceania',3],
 
 
   // ── Territories (difficulty 0 → not playable) ──
@@ -295,7 +298,25 @@ const MICROSTATE_COORDS = {
   296: [172.9717, 1.4518],     // Kiribati
   798: [179.1940, -8.5338],    // Tuvalu
   520: [166.9315, -0.5228],    // Nauru
-  584: [171.1848, 7.1315]      // Isole Marshall
+  584: [171.1848, 7.1315],      // Isole Marshall
+
+  // Oceania – extra islands
+  184: [-159.7777, -21.2367],    // Isole Cook
+  570: [-169.8672, -19.0544],    // Niue
+  772: [-171.8484, -9.2002],     // Tokelau
+
+  // Small countries (enhanced clickability)
+  196: [33.4299, 35.1264],       // Cipro
+  626: [125.7275, -8.8742],      // Timor Est
+  96:  [114.7277, 4.5353],       // Brunei
+  388: [-77.2975, 18.1096],      // Giamaica
+  780: [-61.2225, 10.6918],      // Trinidad e Tobago
+  44:  [-77.3963, 25.0343],      // Bahamas
+  270: [-15.3101, 13.4432],      // Gambia
+  748: [31.4659, -26.5225],      // Eswatini
+  426: [28.2336, -29.6100],      // Lesotho
+  262: [42.5903, 11.8251],       // Gibuti
+  624: [-15.1804, 12.2356]       // Guinea-Bissau
 };
 
 
